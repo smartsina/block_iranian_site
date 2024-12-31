@@ -570,71 +570,73 @@ update_upgrade_package_lists(){
     clear_logs 1
   fi
 
+if [[ -n "$apt_update_error" ]]; then
+  # بررسی خطای مربوط به Debian 11 (bullseye) - احتمال وقوع کم در اوبونتو ۲۴.۰۴
+  if echo "$apt_update_error" | grep -q "The repository 'http://security.debian.org/debian-security bullseye/updates Release' does not have a Release file"; then
+    echo
+    print "[bold][yellow]دستور 'apt update' با خطای زیر مواجه شد:"
+    echo
+    print "[bold][red]$apt_update_error"
+    echo
+    print "[bold][blue]آیا می‌خواهید آن را برطرف کنید؟"
+    confirmation_dialog y
+    response="$?"
+    clear_logs 1
+    if [ $response -eq 1 ]; then
+      print "[blue]در حال رفع مشکل برای Debian 11..."
+      sleep 1
+      # حذف ورودی‌های احتمالی Debian از sources.list
+      sed -i '/^deb http:\/\/security\.debian\.org\/debian-security\//d' /etc/apt/sources.list
+      # اضافه کردن مخزن امنیتی مناسب برای اوبونتو ۲۴.۰۴
+      echo "deb http://security.ubuntu.com/ubuntu lunar-security main restricted universe multiverse" >> /etc/apt/sources.list
+      print "[bold][green]مشکل برطرف شد :)"
+      sleep 1
+      print "[blue]تلاش مجدد..."
+      sleep 1
+      update_upgrade_package_lists
+      return
+    else
+      print center "[bold][white]برای رفع مشکلات، لطفاً پیام‌های خطا و جزئیات توزیع را از طریق [bold][green]@wepn_group [bold][white]به اشتراک بگذارید. این کار به رفع سریع‌تر و خودکارسازی راه‌حل‌ها برای نسخه‌های آینده کمک می‌کند."
+      fn_menu__exit
+    fi
 
-  if [[ -n "$apt_update_error" ]]; then
-    if echo "$apt_update_error" | grep -q "The repository 'http://security.debian.org/debian-security bullseye/updates Release' does not have a Release file" ; then
-        echo
-        print "[bold][yellow]The 'apt update' encountered the following error(s):"
-        echo
-        print "[bold][red]$apt_update_error"
-        echo
-        print "[bold][blue]Would you like to resolve it?"
-        confirmation_dialog y
-        response="$?"
-        clear_logs 1
-        if [ $response -eq 1 ]; then
-          # Fix error for Debian 11
-          print "[blue]Resolving the problem..."
-          sleep 1
-          cp /etc/apt/sources.list /etc/apt/sources.list.bak
-          sed -i '/debian-security/d; /^deb-src/d' /etc/apt/sources.list
-          echo "deb http://security.debian.org/debian-security/ bullseye-security main" >> /etc/apt/sources.list
+  # بررسی خطای certbot
+  elif echo "$apt_update_error" | grep -q "certbot/certbot/ubuntu"; then
+    echo
+    print "[bold][yellow]دستور 'apt update' با خطای زیر مواجه شد:"
+    echo
+    print "[bold][red]$apt_update_error"
+    echo
+    print "[bold][blue]آیا می‌خواهید آن را برطرف کنید؟"
+    confirmation_dialog y
+    response="$?"
+    clear_logs 1
+    if [ $response -eq 1 ]; then
+      print "[blue]در حال رفع خطای certbot..."
+      sleep 1
+      rm -f /etc/apt/sources.list.d/certbot-*.list
+      print "[bold][green]مشکل برطرف شد :)"
+      sleep 1
+      print "[blue]تلاش مجدد..."
+      sleep 1
+      update_upgrade_package_lists
+      return
+    else
+      print center "[bold][white]برای رفع مشکلات، لطفاً پیام‌های خطا و جزئیات توزیع را از طریق [bold][green]@wepn_group [bold][white]به اشتراک بگذارید. این کار به رفع سریع‌تر و خودکارسازی راه‌حل‌ها برای نسخه‌های آینده کمک می‌کند."
+      fn_menu__exit
+    fi
 
-          print "[bold][green]The issue has been resolved :)"
-          sleep 1
-          # try again
-          print "[blue]Trying again..."
-          sleep 1
-          update_upgrade_package_lists
-          return
-        else
-          print center "[bold][white]To address the issues, please share error messages and distribution details via [bold][green]@wepn_group. [bold][white]This will streamline fixing and aid in automating solutions for future versions."
-          fn_menu__exit
-        fi
-    # certbot error
-    elif echo "$apt_update_error" | grep -q "certbot/certbot/ubuntu" ; then
-        echo
-        print "[bold][yellow]The 'apt update' encountered the following error(s):"
-        echo
-        print "[bold][red]$apt_update_error"
-        echo
-        print "[bold][blue]Would you like to resolve it?"
-        confirmation_dialog y
-        response="$?"
-        clear_logs 1
-        if [ $response -eq 1 ]; then
-          # Fix certbot error
-          print "[blue]Resolving the problem..."
-          sleep 1
-          rm -f /etc/apt/sources.list.d/certbot-*.list
-          print "[bold][green]The issue has been resolved :)"
-          sleep 1
-          # try again
-          print "[blue]Trying again..."
-          sleep 1
-          update_upgrade_package_lists
-          return
-        else
-          print center "[bold][white]To address the issues, please share error messages and distribution details via [bold][green]@wepn_group. [bold][white]This will streamline fixing and aid in automating solutions for future versions."
-          #exit
-          fn_menu__exit
-        fi
-      else
-        print center "[bold][white]To address the issues, please share error messages and distribution details via [bold][green]@wepn_group. [bold][white]This will streamline fixing and aid in automating solutions for future versions."
-        fn_menu__exit
-      fi
+  # مدیریت سایر خطاها
+  else
+    echo
+    print "[bold][yellow]دستور 'apt update' با یک خطای ناشناخته مواجه شد:"
+    echo
+    print "[bold][red]$apt_update_error"
+    echo
+    print center "[bold][white]برای دریافت کمک، لطفاً پیام‌های خطا و جزئیات توزیع را از طریق [bold][green]@wepn_group [bold][white]به اشتراک بگذارید. این به عیب‌یابی و بهبود نسخه‌های آینده کمک خواهد کرد."
+    fn_menu__exit
   fi
-
+fi
 
   #------------------------------------------------------------------- upgrade
 
